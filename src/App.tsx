@@ -7,7 +7,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Apple, Ban } from "lucide-react"
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -15,7 +14,6 @@ import {
   AlertDialogHeader,
   AlertDialogMedia,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 
@@ -27,7 +25,8 @@ const compressImage = (imageSrc: string): Promise<Blob> => {
       const canvas = document.createElement("canvas");
       // Hanya ubah ukuran jika terlalu besar, tapi jangan terlalu kecil
       // 800px adalah batas aman agar OpenCV tidak kehilangan detail penting
-      const max_size = 800;
+      // 800 => 500
+      const max_size = 500;
       let width = img.width;
       let height = img.height;
 
@@ -49,8 +48,8 @@ const compressImage = (imageSrc: string): Promise<Blob> => {
 
       if (ctx) {
         // Menggambar ulang dengan kualitas terbaik (tanpa smoothing yang merusak warna)
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
+        // ctx.imageSmoothingEnabled = true;
+        // ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, 0, 0, width, height);
 
         // Ubah menjadi PNG untuk mempertahankan warna asli (Lossless)
@@ -60,7 +59,9 @@ const compressImage = (imageSrc: string): Promise<Blob> => {
             if (blob) resolve(blob);
             else reject(new Error("Canvas to Blob failed"));
           },
-          "image/png" // PNG jauh lebih baik untuk OpenCV masking daripada JPEG
+          "image/jpeg",
+          0.8,
+          /* "image/png" */ // PNG jauh lebih baik untuk OpenCV masking daripada JPEG
         );
       } else {
         reject(new Error("Canvas context is null"));
@@ -108,9 +109,9 @@ const App = () => {
       //   body: formData
       // });
       //
-      // if (!response.ok) {
-      //   throw new Error("Gagal merespons dari server");
-      // }
+      if (!response.ok) {
+        throw new Error("Gagal merespons dari server");
+      }
 
       const data: ApiResponse = await response.json();
       if (data.hasil_mlp === "Bukan Tomat") {

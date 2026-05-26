@@ -132,6 +132,7 @@ export function ControlPanel({
             className="group h-14 w-14 md:hidden rounded-full bg-white/10 backdrop-blur-md transition-all hover:bg-white/20 hover:scale-105"
             aria-label="Switch camera"
             disabled={isScanning}
+            onClick={switchCamera}
           >
             <SwitchCamera className="h-6 w-6 text-white transition-transform group-hover:scale-110" />
           </Button>
