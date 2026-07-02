@@ -260,60 +260,71 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
-// Fungsi compressImage yang disempurnakan (tanpa merusak warna asli)
-const compressImage = (imageSrc: string): Promise<Blob> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      // Hanya ubah ukuran jika terlalu besar, tapi jangan terlalu kecil
-      // 800px adalah batas aman agar OpenCV tidak kehilangan detail penting
-      // 800 => 500
-      const max_size = 500;
-      let width = img.width;
-      let height = img.height;
-
-      if (width > height) {
-        if (width > max_size) {
-          height *= max_size / width;
-          width = max_size;
-        }
-      } else {
-        if (height > max_size) {
-          width *= max_size / height;
-          height = max_size;
-        }
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-
-      if (ctx) {
-        // Menggambar ulang dengan kualitas terbaik (tanpa smoothing yang merusak warna)
-        // ctx.imageSmoothingEnabled = true;
-        // ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Ubah menjadi PNG untuk mempertahankan warna asli (Lossless)
-        // atau tetap JPEG tapi dengan kualitas maksimal (1.0)
-        canvas.toBlob(
-          (blob: Blob | null) => {
-            if (blob) resolve(blob);
-            else reject(new Error("Canvas to Blob failed"));
-          },
-          "image/png",
-          0.8,
-          /* "image/png" */ // PNG jauh lebih baik untuk OpenCV masking daripada JPEG
-        );
-      } else {
-        reject(new Error("Canvas context is null"));
-      }
-    };
-    img.onerror = (err: string | Event) => reject(err);
-    img.src = imageSrc;
-  });
+const dataURItoBlob = (dataURI: string): Blob => {
+  const byteString = atob(dataURI.split(",")[1]);
+  const mimeString = dataURI.split(",")[0].split(":")[1].split(";")[0];
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], { type: mimeString });
 };
+
+// Fungsi compressImage yang disempurnakan (tanpa merusak warna asli)
+// const compressImage = (imageSrc: string): Promise<Blob> => {
+//   return new Promise((resolve, reject) => {
+//     const img = new Image();
+//     img.onload = () => {
+//       const canvas = document.createElement("canvas");
+//       // Hanya ubah ukuran jika terlalu besar, tapi jangan terlalu kecil
+//       // 800px adalah batas aman agar OpenCV tidak kehilangan detail penting
+//       // 800 => 500
+//       const max_size = 500;
+//       let width = img.width;
+//       let height = img.height;
+
+//       if (width > height) {
+//         if (width > max_size) {
+//           height *= max_size / width;
+//           width = max_size;
+//         }
+//       } else {
+//         if (height > max_size) {
+//           width *= max_size / height;
+//           height = max_size;
+//         }
+//       }
+
+//       canvas.width = width;
+//       canvas.height = height;
+//       const ctx = canvas.getContext("2d");
+
+//       if (ctx) {
+//         // Menggambar ulang dengan kualitas terbaik (tanpa smoothing yang merusak warna)
+//         // ctx.imageSmoothingEnabled = true;
+//         // ctx.imageSmoothingQuality = "high";
+//         ctx.drawImage(img, 0, 0, width, height);
+
+//         // Ubah menjadi PNG untuk mempertahankan warna asli (Lossless)
+//         // atau tetap JPEG tapi dengan kualitas maksimal (1.0)
+//         canvas.toBlob(
+//           (blob: Blob | null) => {
+//             if (blob) resolve(blob);
+//             else reject(new Error("Canvas to Blob failed"));
+//           },
+//           "image/png",
+//           0.8,
+//           /* "image/png" */ // PNG jauh lebih baik untuk OpenCV masking daripada JPEG
+//         );
+//       } else {
+//         reject(new Error("Canvas context is null"));
+//       }
+//     };
+//     img.onerror = (err: string | Event) => reject(err);
+//     img.src = imageSrc;
+//   });
+// };
 
 interface ApiResponse {
   hasil_slp: string;
@@ -339,72 +350,103 @@ const App = () => {
     setCameraMode((prev) => (prev === "environment" ? "user" : "environment"));
   }, []);
 
-  const classifyTomato = useCallback(async (imageData: string) => {
-    setImagePreview(imageData);
-    setIsScanning(true);
+  // const classifyTomato = useCallback(async (imageData: string) => {
+  //   setImagePreview(imageData);
+  //   setIsScanning(true);
 
-    try {
-      const compressedBlob: Blob = await compressImage(imageData);
+  //   try {
+  //     const compressedBlob: Blob = await compressImage(imageData);
 
-      const formData = new FormData();
-      formData.append("file", compressedBlob, "tomat.jpg");
+  //     const formData = new FormData();
+  //     formData.append("file", compressedBlob, "tomat.jpg");
 
-      // ===== Production ======
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/prediksi`, {
-        method: "POST",
-        headers: { "ngrok-skip-browser-warning": "69420" },
-        body: formData,
-      });
+  const classifyTomato = useCallback(
+    async (imageBlob: Blob, previewUrl: string) => {
+      setImagePreview(previewUrl);
+      setIsScanning(true);
 
-      // ===== Development =====
-      // const response = await fetch(`http://127.0.0.1:8000/prediksi`, {
-      //   method: "POST",
-      //   body: formData,
-      // });
-      //
-      if (!response.ok) {
-        throw new Error("Gagal merespons dari server");
-      }
+      try {
+        const formData = new FormData();
+        formData.append("file", imageBlob, "tomat_raw.jpg");
 
-      const data: ApiResponse = await response.json();
-      if (data.hasil_mlp === "Bukan Tomat") {
-        setIsTomat(true);
+        // ===== Production ======
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/prediksi`,
+          {
+            method: "POST",
+            headers: { "ngrok-skip-browser-warning": "69420" },
+            body: formData,
+          },
+        );
+
+        // ===== Development =====
+        // const response = await fetch(`http://127.0.0.1:8000/prediksi`, {
+        //   method: "POST",
+        //   body: formData,
+        // });
+        //
+        if (!response.ok) {
+          throw new Error("Gagal merespons dari server");
+        }
+
+        const data: ApiResponse = await response.json();
+        if (data.hasil_mlp === "Bukan Tomat") {
+          setIsTomat(true);
+          setIsScanning(false);
+        } else {
+          const isRipe = data.hasil_mlp === "Matang";
+
+          setResult(isRipe ? "ripe" : "unripe");
+          setRawLabel(data.hasil_mlp);
+
+          setIsScanning(false);
+          setIsResultOpen(true);
+        }
+      } catch (error) {
+        console.error("Error saat klasifikasi:", error);
+        alert("Gagal terhubung ke server backend");
         setIsScanning(false);
-      } else {
-        const isRipe = data.hasil_mlp === "Matang";
-
-        setResult(isRipe ? "ripe" : "unripe");
-        setRawLabel(data.hasil_mlp);
-
-        setIsScanning(false);
-        setIsResultOpen(true);
       }
-    } catch (error) {
-      console.error("Error saat klasifikasi:", error);
-      alert("Gagal terhubung ke server backend");
-      setIsScanning(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const handleCapture = useCallback(() => {
     setCaptureTrigger((prev) => prev + 1);
   }, []);
 
+  // const handleCameraCapture = useCallback(
+  //   (imageData: string) => classifyTomato(imageData),
+  //   [classifyTomato],
+  // );
+
   const handleCameraCapture = useCallback(
-    (imageData: string) => classifyTomato(imageData),
+    (imageData: string) => {
+      const rawBlob = dataURItoBlob(imageData);
+      classifyTomato(rawBlob, imageData);
+    },
     [classifyTomato],
   );
 
+  // const handleFileUpload = useCallback(
+  //   (file: File) => {
+  //     const reader = new FileReader();
+  //     reader.onload = (e: ProgressEvent<FileReader>) => {
+  //       const imageData = e.target?.result as string;
+  //       if (imageData) {
+  //         classifyTomato(imageData);
+  //       }
+  //     };
+  //     reader.readAsDataURL(file);
+  //   },
+  //   [classifyTomato],
+  // );
+
   const handleFileUpload = useCallback(
     (file: File) => {
-      const reader = new FileReader();
-      reader.onload = (e: ProgressEvent<FileReader>) => {
-        const imageData = e.target?.result as string;
-        if (imageData) {
-          classifyTomato(imageData);
-        }
-      };
-      reader.readAsDataURL(file);
+      // File yang diunggah sudah berupa Blob, langsung kirim ke backend
+      const previewUrl = URL.createObjectURL(file);
+      classifyTomato(file, previewUrl);
     },
     [classifyTomato],
   );
