@@ -327,8 +327,10 @@ const dataURItoBlob = (dataURI: string): Blob => {
 // };
 
 interface ApiResponse {
-  hasil_slp: string;
-  hasil_mlp: string;
+  status: string;
+  message?: string;
+  hasil_slp?: string;
+  hasil_mlp?: string;
 }
 
 const App = () => {
@@ -379,28 +381,35 @@ const App = () => {
           },
         );
 
-        // ===== Development =====
-        // const response = await fetch(`http://127.0.0.1:8000/prediksi`, {
-        //   method: "POST",
-        //   body: formData,
-        // });
-        //
         if (!response.ok) {
           throw new Error("Gagal merespons dari server");
         }
 
         const data: ApiResponse = await response.json();
-        if (data.hasil_mlp === "Bukan Tomat") {
+
+        // Pengecekan respons yang sangat tegas
+        if (data.status === "error") {
+          alert(data.message || "Terjadi kesalahan saat memproses gambar.");
+          setIsScanning(false);
+          return;
+        }
+
+        if (data.hasil_mlp === "Matang") {
+          setResult("ripe");
+          setRawLabel(data.hasil_mlp);
+          setIsScanning(false);
+          setIsResultOpen(true);
+        } else if (data.hasil_mlp === "Belum Matang") {
+          setResult("unripe");
+          setRawLabel(data.hasil_mlp);
+          setIsScanning(false);
+          setIsResultOpen(true);
+        } else if (data.hasil_mlp === "Bukan Tomat") {
           setIsTomat(true);
           setIsScanning(false);
         } else {
-          const isRipe = data.hasil_mlp === "Matang";
-
-          setResult(isRipe ? "ripe" : "unripe");
-          setRawLabel(data.hasil_mlp);
-
+          alert("Respons klasifikasi tidak valid atau tidak dikenali.");
           setIsScanning(false);
-          setIsResultOpen(true);
         }
       } catch (error) {
         console.error("Error saat klasifikasi:", error);
