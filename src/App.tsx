@@ -302,7 +302,7 @@ const compressImage = (imageSrc: string): Promise<Blob> => {
             if (blob) resolve(blob);
             else reject(new Error("Canvas to Blob failed"));
           },
-          "image/jpeg",
+          "image/png",
           0.8,
           /* "image/png" */ // PNG jauh lebih baik untuk OpenCV masking daripada JPEG
         );

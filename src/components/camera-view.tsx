@@ -143,7 +143,7 @@ export function CameraView({
           videoRef.current.srcObject = stream;
         }
       } catch (err) {
-        console.error("[v0] Camera access denied or not available:", err);
+        console.error("Camera access denied or not available:", err);
       }
     }
 
