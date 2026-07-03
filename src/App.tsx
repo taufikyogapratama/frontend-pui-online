@@ -373,7 +373,7 @@ const App = () => {
 
         // ===== Production ======
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/prediksi`,
+          `${import.meta.env.VITE_API_URL}/prediksi-validasi`,
           {
             method: "POST",
             headers: { "ngrok-skip-browser-warning": "69420" },
